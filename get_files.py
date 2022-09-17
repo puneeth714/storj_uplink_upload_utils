@@ -31,3 +31,10 @@ def get_files(path, condition, isDir=False):
         files_are.extend(os.path.join(root, file)
                          for file in files if condition(file))
     return files
+
+def delete_files(files:list,source:str):
+    # delete the files in the list
+    for file in files:
+        path = os.path.join(source, file)
+        os.remove(path)
+        logger.info(f"{path} deleted")

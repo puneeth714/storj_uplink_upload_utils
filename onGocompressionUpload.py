@@ -10,17 +10,9 @@ import time
 import yaml
 from loguru import logger
 from multiprocessing import Process, Queue, Pipe
-from get_files import removeSpaces, get_files
+from get_files import removeSpaces, get_files, delete_files
 from compressLossless import *
 from upload import parallelsRun, countFilesInDestination, makeCmd
-
-
-def uploadToUplink():
-    pass
-
-
-def pipeTo():
-    pass
 
 
 # Get source ,destination,compression_type,uplink_path_type,uplink_path_destination,log_file
@@ -56,7 +48,7 @@ def losslesscompression(source, destination, sender, compression_type="7z"):
         start = time.time()
         # append only the file name to the output_files list
         output = archivesource(
-            os.path.join(source,file), destination, compression_type).split("/")[-1]
+            os.path.join(source, file), destination, compression_type).split("/")[-1]
         # send the compressed file to the Pipe
         sender.send(output)
         output_files.append(output)
@@ -104,6 +96,8 @@ def sendFilesUplink(source, destination, parallels, receiver, uplink_path_type="
         cmd = makeCmd(files, source, destination, uplink_path_type)
         # call the parallelsRun function to upload the files to uplink
         parallelsRun(cmd)
+        # delete the files from the destination
+        delete_files(files, source)
         # remove the files from the list
         files = []
 
@@ -165,7 +159,7 @@ if __name__ == "__main__":
     p1 = Process(target=losslesscompression, args=(
         source, destination, sender, compression_type))
     p2 = Process(target=sendFilesUplink, args=(
-        source, uplink_path_destination, parallel_upload, receiver, uplink_path_type))
+        destination, uplink_path_destination, parallel_upload, receiver, uplink_path_type))
     # start process
     logger.info("Starting process")
     p1.start()

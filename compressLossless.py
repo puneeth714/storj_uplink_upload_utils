@@ -31,10 +31,12 @@ def archivesource(source, destination, compression_type="7z"):
         os.makedirs(destination)
     # compress source
     if compression_type == "7z":
+        source_file = source.split("/")[-1]
         subprocess.run(
-            f"7z a -t7z -m0=lzma2 -mx=9 -mfb=64 -md=32m -ms=on {os.path.join(destination,source)}.7z {source}",
+            f"7z a -t7z -m0=lzma2 -mx=9 -mfb=64 -md=32m -ms=on {os.path.join(destination,source_file)}.7z {source}",
             shell=True,
         )
+        source=source_file
         # -si{dictionary_size} - set dictionary size to {dictionary_size} bytes
         # -mx=9 - set compression level to 9 (max)
         # -m0=lzma - use LZMA compression
@@ -46,32 +48,32 @@ def archivesource(source, destination, compression_type="7z"):
         # -r - recursive
         # -t7z - use 7z format
         # -si{dictionary_size} - set dictionary size to {dictionary_size} bytes
-        return f"{os.path.join(destination,source)}.7z"
+        return f"{source_file}.7z"
     elif compression_type == "tar.gz":
         subprocess.run(
-            f"tar -czvf {destination}/{source}.tar.gz {source}",
+            f"tar -czvf {destination}/{source_file}.tar.gz {source}",
             shell=True,
         )
-        return f"{destination}/{source}.tar.gz"
+        return f"{source_file}.tar.gz"
 
     elif compression_type == "tar.bz2":
         subprocess.run(
-            f"tar -cjvf {destination}/{source}.tar.bz2 {source}",
+            f"tar -cjvf {destination}/{source_file}.tar.bz2 {source}",
             shell=True,
         )
-        return f"{destination}/{source}.tar.bz2"
+        return f"{source_file}.tar.bz2"
     elif compression_type == "tar.xz":
         subprocess.run(
-            f"tar -cJvf {destination}/{source}.tar.xz {source}",
+            f"tar -cJvf {destination}/{source_file}.tar.xz {source}",
             shell=True,
         )
-        return f"{destination}/{source}.tar.xz"
+        return f"{source_file}.tar.xz"
     elif compression_type == "tar":
         subprocess.run(
-            f"tar -cvf {destination}/{source}.tar {source}",
+            f"tar -cvf {destination}/{source_file}.tar {source}",
             shell=True,
         )
-        return f"{destination}/{source}.tar"
+        return f"{source_file}.tar"
 
 
 
