@@ -3,6 +3,6 @@ destination : /home/puneeth/Pictures/Files/tmp1/
 compression_type : 7z
 uplink_path_destination : memories20220919/
 uplink_path_type : sj://
-log_file : /home/puneeth/Pictures/Files/log.txt
-parallel_upload : 1
+log_file : log.txt
+parallel_upload : 5
 parallel_upload_wait_time : 3

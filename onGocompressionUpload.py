@@ -88,21 +88,24 @@ def sendFilesUplink(source, destination, parallels, receiver, uplink_path_type="
     # receiver is the pipe receiver
     # wait untill the length of receiver is equal to the length of parallels
     files = []
-    while len(files) != parallels:
-        time.sleep(1)
-        recieve = receiver.recv()
-        logger.info(f"Received {recieve}")
-        if recieve == "Finished":
-            logger.info("Finished receiving files")
-            break
-        files.append(recieve)
-    # upload the files to uplink
-    count = countFilesInDestination(destination, uplink_path_type)
-    print(f"files in destination: {count}")
-    # make the cmd to upload the files
-    cmd = makeCmd(files, source, destination, uplink_path_type)
-    # call the parallelsRun function to upload the files to uplink
-    parallelsRun(cmd)
+    while True:
+        while len(files) != parallels:
+            time.sleep(1)
+            recieve = receiver.recv()
+            logger.info(f"Received {recieve}")
+            if recieve == "Finished":
+                logger.info("Finished receiving files")
+                return
+            files.append(recieve)
+        # upload the files to uplink
+        count = countFilesInDestination(destination, uplink_path_type)
+        print(f"files in destination: {count}")
+        # make the cmd to upload the files
+        cmd = makeCmd(files, source, destination, uplink_path_type)
+        # call the parallelsRun function to upload the files to uplink
+        parallelsRun(cmd)
+        # remove the files from the list
+        files = []
 
 
 def onGoCompressionUpload(config_file_path):
