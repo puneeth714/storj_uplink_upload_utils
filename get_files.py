@@ -25,7 +25,7 @@ def get_files(path, condition, isDir=False):
     # return all the files in the path recursively
     files_are = []
     if isDir:
-        files_are.extend(file for file in os.listdir(path) if condition(file))
+        files_are.extend(file for file in os.listdir(path) if condition(os.path.join(path,file)))
         return files_are
     for root, dirs, files in os.walk(path, topdown=False):
         files_are.extend(os.path.join(root, file)

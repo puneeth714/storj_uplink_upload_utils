@@ -64,6 +64,7 @@ def uploadParallelSystem(cmd: str):
 def parallelsRun(cmd: list):
     # run the commands in cmd in parallel
     start_time = time.time()
+    uploadLog(cmd)
 
     processes = []
     for each in cmd:
@@ -93,8 +94,23 @@ def uploadLog(files: list):
     # log the files going to be uploaded with its size
     for each in files:
         file = each.split("\"")[1]
-        logger.info(f"uploading {file} with size {int(os.path.getsize(file))/(1024*1024)}M")
+        logger.info(
+            f"uploading {file} with size {int(os.path.getsize(file))/(1024*1024)}M")
 
+
+def makeCmd(f, root, destination, uplink_path_type):
+    if type(f)==str:
+        # make the command to upload the file f in root to destination in stroj.io
+        source_file = os.path.join(root, f)
+        # send in the source file
+        destination_file = os.path.join(
+            destination, root.replace(root, ""), f)
+        return f'/home/$USER/programmes/uplink cp \"{source_file}\" \"{uplink_path_type}{destination_file}\"'
+    elif type(f)==list:
+        cmds=[]
+        for each in f:
+            cmds.append(makeCmd(each,root,destination,uplink_path_type))
+        return cmds
 
 def uploadParallel(source, destination, parallels, uplink_path_type):
     # # upload the files in source folder to destination folder in stroj.io using uplink command line tool,and monitor the progress
@@ -116,12 +132,7 @@ def uploadParallel(source, destination, parallels, uplink_path_type):
                 logger.warning(f"file {f} is already uploaded Skipping")
                 skip += 1
                 continue
-            source_file = os.path.join(root, f)
-            # send in the source file
-            destination_file = os.path.join(
-                destination, root.replace(source, ""), f)
-            cmd = f"/home/$USER/programmes/uplink cp  \"{source_file}\" \"{uplink_path_type}{destination_file}\""
-            tmp_cmd.append(cmd)
+            tmp_cmd.append(makeCmd(f, root, destination, uplink_path_type))
             if len(tmp_cmd) == parallels:
                 files_cmd.append(tmp_cmd)
                 tmp_cmd = []
@@ -132,7 +143,6 @@ def uploadParallel(source, destination, parallels, uplink_path_type):
     logger.info(f"total files to be skipped: {skip}\n")
     try:
         for each in files_cmd:
-            uploadLog(each)
             parallelsRun(each)
             # appned the files to uploaded.txt
             for file in each:
@@ -195,11 +205,9 @@ def countFilesInDestination(destination, uplink_path_type):
     return int(count)-1
 
 
-def main(source,destination,parallels,uplink_path_type="sj://"):
-    # source = sys.argv[1]
-    # destination = sys.argv[2]
-    # parallels = int(sys.argv[3])
-    # uplink_path_type = sys.argv[4] if len(sys.argv) > 4 else "sj://"
+def mainUpload(source, destination, parallels, uplink_path_type="sj://"):
+    # receiver is the pipe receiver
+    # wait untill the length of receiver is equal to the length of parallels
     total = countFilesInSource(source)
     print(f"total files: {total}")
     count = countFilesInDestination(destination, uplink_path_type)
@@ -208,5 +216,5 @@ def main(source,destination,parallels,uplink_path_type="sj://"):
 
 
 # if __name__ == "__main__":
-#     asyncio.run(main())
-# main()
+#     asyncio.run(mainUpload())
+# mainUpload()

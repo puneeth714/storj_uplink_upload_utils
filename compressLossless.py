@@ -32,7 +32,7 @@ def archivesource(source, destination, compression_type="7z"):
     # compress source
     if compression_type == "7z":
         subprocess.run(
-            f"7z a -t7z -m0=lzma2 -mx=9 -mfb=64 -md=32m -ms=on {destination}/{source}.7z {source}",
+            f"7z a -t7z -m0=lzma2 -mx=9 -mfb=64 -md=32m -ms=on {os.path.join(destination,source)}.7z {source}",
             shell=True,
         )
         # -si{dictionary_size} - set dictionary size to {dictionary_size} bytes
@@ -46,7 +46,7 @@ def archivesource(source, destination, compression_type="7z"):
         # -r - recursive
         # -t7z - use 7z format
         # -si{dictionary_size} - set dictionary size to {dictionary_size} bytes
-        return f"{destination}/{source}.7z"
+        return f"{os.path.join(destination,source)}.7z"
     elif compression_type == "tar.gz":
         subprocess.run(
             f"tar -czvf {destination}/{source}.tar.gz {source}",
