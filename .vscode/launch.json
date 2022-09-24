@@ -11,7 +11,7 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "args": ["config.yaml"]
+            "args": ["/home/puneeth/Pictures/tmp/","/home/puneeth/Pictures/tmp1/","config.yaml"]
         }
     ]
 }

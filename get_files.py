@@ -1,5 +1,12 @@
 import os
+import yaml
 from loguru import logger
+
+
+def readConfig(config):
+    # read the config file
+    with open(config, "r") as file:
+        return yaml.safe_load(file)
 
 
 def removeSpaces(source: str):
@@ -25,14 +32,18 @@ def get_files(path, condition, isDir=False):
     # return all the files in the path recursively
     files_are = []
     if isDir:
-        files_are.extend(file for file in os.listdir(path) if condition(os.path.join(path,file)))
+        files_are.extend(file for file in os.listdir(
+            path) if condition(os.path.join(path, file)))
         return files_are
     for root, dirs, files in os.walk(path, topdown=False):
-        files_are.extend(os.path.join(root, file)
-                         for file in files if condition(file))
-    return files
+        for name in files:
+            file_path=os.path.join(root,name)
+            if condition(file_path):
+                files_are.append(file_path)
+    return files_are
 
-def delete_files(files:list,source:str):
+
+def delete_files(files: list, source: str):
     # delete the files in the list
     for file in files:
         path = os.path.join(source, file)

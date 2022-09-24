@@ -17,7 +17,9 @@ from upload import parallelsRun, countFilesInDestination, makeCmd
 
 # Get source ,destination,compression_type,uplink_path_type,uplink_path_destination,log_file
 # parallel_upload
-
+def makePath(path):
+    # replace environment variables in the path with their values
+    return os.path.expandvars(path)
 
 def losslesscompression(source, destination, sender, compression_type="7z"):
     global_start_time = time.time()
@@ -82,7 +84,6 @@ def sendFilesUplink(source, destination, parallels, receiver, uplink_path_type="
     files = []
     while True:
         while len(files) != parallels:
-            time.sleep(1)
             recieve = receiver.recv()
             logger.info(f"Received {recieve}")
             if recieve == "Finished":
@@ -108,12 +109,12 @@ def onGoCompressionUpload(config_file_path):
     logger.info("Reading config.yaml file")
     with open(config_file_path, "r") as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
-    source = config["source"]
-    destination = config["destination"]
+    source = makePath(config["source"])
+    destination = makePath(config["destination"])
     compression_type = config["compression_type"]
     uplink_path_type = config["uplink_path_type"]
-    uplink_path_destination = config["uplink_path_destination"]
-    log_file = config["log_file"]
+    uplink_path_destination = makePath(config["uplink_path_destination"])
+    log_file = makePath(config["log_file"])
     parallel_upload = config["parallel_upload"]
     parallel_upload_wait_time = config["parallel_upload_wait_time"]
     # add logger for logger.info to file counts.log
