@@ -215,19 +215,32 @@ def main():
     # connect to the database
     conn = sqlite3.connect(config['database'])
     # call compressFileLossy function
-    compressFilesLossy(file_list, source, destination,
-                       config, conn, table=config['files_table'])
-    # get the size of the destination folder and log it
-    destination_size = getTotalSize(destination, destination)
-    logger.info(f"Source folder size: {source_size} MB")
-    logger.info(f"Destination folder size: {destination_size} MB")
-    # log the compression ratio
-    logger.info(
-        f"Compression ratio: {round((source_size)/destination_size,2)}")
-    # commit the changes to the database
-    conn.commit()
-    # close the connection to the database
-    conn.close()
+    try:
+        compressFilesLossy(file_list, source, destination,
+                        config, conn, table=config['files_table'])
+        # get the size of the destination folder and log it
+        destination_size = getTotalSize(destination, destination)
+        logger.info(f"Source folder size: {source_size} MB")
+        logger.info(f"Destination folder size: {destination_size} MB")
+        # log the compression ratio
+        logger.info(
+            f"Compression ratio: {round((source_size)/destination_size,2)}")
+        # commit the changes to the database
+        conn.commit()
+        # close the connection to the database
+        conn.close()
+    # except any exception or keyboard interrupt
+    # log the exception
+    except:
+        logger.exception("Exception occured")
+        
+        # if the user presses ctrl+c
+        # commit the changes to the database
+        conn.commit()
+        # close the connection to the database
+        conn.close()
+        # exit the program
+        sys.exit(0)
 
 if __name__ == "__main__":
     main()
