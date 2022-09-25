@@ -1,4 +1,5 @@
 import os
+import time
 import yaml
 import json
 import pandas as pd
@@ -56,6 +57,7 @@ def convertJSONtoSQL(data: dict, table_name: str):
 
 def get_files(path, condition, isDir=False):
     # return all the files in the path recursively
+    get_files_start = time.time()
     files_are = []
     if isDir:
         files_are.extend(file for file in os.listdir(
@@ -66,7 +68,45 @@ def get_files(path, condition, isDir=False):
             file_path = os.path.join(root, name)
             if condition(file_path):
                 files_are.append(file_path)
+    logger.info(f"Time taken to get files: {time.time()-get_files_start}")
     return files_are
+
+
+def get_files_recurse(path, condition, isDir=False):
+    # return all the files in the path recursively
+    files_are = []
+    if isDir:
+        files_are.extend(file for file in os.listdir(
+            path) if condition(os.path.join(path, file)))
+        return files_are
+    for file in os.listdir(path):
+        file_path = os.path.join(path, file)
+        if os.path.isdir(file_path):
+            files_are.extend(get_files_recurse(file_path, condition, isDir))
+        elif condition(file_path):
+            files_are.append(file_path)
+    return files_are
+
+
+def get_files_scandir(path, condition, isDir=False):
+    # return all the files in the path recursively
+    files_are = []
+    if isDir:
+        files_are.extend(file for file in os.listdir(
+            path) if condition(os.path.join(path, file)))
+        return files_are
+    for entry in os.scandir(path):
+        if entry.is_dir():
+            files_are.extend(get_files_scandir(entry.path, condition, isDir))
+        elif condition(entry.path):
+            files_are.append(entry.path)
+    return files_are
+
+
+def get_files_custom(path):
+    # just get the files recursively
+    # using find command
+    return os.popen(f"find {path} -type f").read().split("\n")
 
 
 def delete_files(files: list, source: str):

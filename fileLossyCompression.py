@@ -9,7 +9,8 @@ import sqlite3
 from loguru import logger
 from PIL import Image
 import subprocess
-from get_files import get_files, readConfig, removeSpaces
+from PIL import UnidentifiedImageError
+from get_files import get_files, get_files_custom, readConfig, removeSpaces, get_files_recurse, get_files_scandir
 
 # log to output.log file
 logger.add("output.log", format="{time} {level} {message}", level="INFO")
@@ -18,6 +19,7 @@ logger.add("output.log", format="{time} {level} {message}", level="INFO")
 def condition(file):
     # return if the given file is an image/video
     # using the file command
+    # thier should be virtually no condition because file types are handled in the respective functions
     file_type = subprocess.check_output(f"file {file}", shell=True)
     return b"image" in file_type.lower() or b"video" in file_type.lower() or \
         ".jpg" in file or ".jpeg" in file or ".png" in file or ".mp4" in file or \
@@ -60,9 +62,28 @@ def addTodatabase(fileName, filePath, destinationName, destinationPath, compress
     # add the data to the table with fileName as the primary key
     query = f"CREATE TABLE IF NOT EXISTS {table} (fileName TEXT PRIMARY KEY, filePath TEXT, destinationName TEXT, destinationPath TEXT, compressionRatio REAL)"
     connection.execute(query)
-    query = f"INSERT INTO {table} VALUES (\'{fileName}\',\'{filePath}\',\'{destinationName}\',\'{destinationPath}\',{compressionRatio})"
+    # insert only if the given fileName is not already in the database
+    query = f"INSERT OR IGNORE INTO {table} VALUES (\"{fileName}\",\"{filePath}\",\"{destinationName}\",\"{destinationPath}\",{compressionRatio})"
+    # query = f"INSERT INTO {table} VALUES (\'{fileName}\',\'{filePath}\',\'{destinationName}\',\'{destinationPath}\',{compressionRatio})"
     logger.info(query)
     connection.execute(query)
+
+
+def copyFile(sourceFile, destinationFile):
+    # copy the file to the destination directory
+    cmd = f"cp  -p {sourceFile} {destinationFile}"
+    runs = subprocess.run(cmd, shell=True)
+    if runs.returncode != 0:
+        logger.error("Error in copy command")
+        return False
+    # log the source and destination file sizes and compression ratio
+    logger.info(f"Done using copy command {cmd}")
+    return True
+
+
+def compressionAverage(avg, now):
+    # calculate the average compression ratio
+    return now if avg == 0 else (avg+now)/2
 
 
 def compressFilesLossy(files, root, destination, config, connection: sqlite3.Connection, table):
@@ -70,6 +91,8 @@ def compressFilesLossy(files, root, destination, config, connection: sqlite3.Con
     if not os.path.exists(destination):
         os.makedirs(destination)
     # compress each file in the list
+    total_count = len(files)
+    average_compress_ratio = 0
     for file in files:
         # check if the file is an image or a video
         file_type = checkImageVideo(file)
@@ -97,12 +120,24 @@ def compressFilesLossy(files, root, destination, config, connection: sqlite3.Con
             # log the file is not compressed
             logger.info("File is not compressed")
             # copy the file to the destination directory
-            subprocess.run(f"cp {file} {destination}", shell=True)
+            copyFile(file, destination)
             # log the file is copied
             logger.info("File is copied")
+        average_compress_ratio = compressionAverage(
+            average_compress_ratio, compression)
         # write the data to the database
         addTodatabase(source_file, source_path, dest_file,
                       destination_folder, compression, connection, table)
+        # show count remaining in red colour
+        logger.opt(ansi=True).info(
+            "<blue>{}</blue> files remaining", total_count)
+        total_count -= 1
+        # log the average compression ratio
+        logger.info(f"Average compression ratio: {average_compress_ratio}")
+    # log the total number of files compressed
+    logger.info(f"Total files compressed: {len(files)}")
+    # log the average compression ratio
+    logger.info(f"Average compression ratio Overall: {average_compress_ratio}")
 
 
 def compressFFMPEG(source: str, root: str, destination: str, config: dict):
@@ -122,7 +157,7 @@ def compressFFMPEG(source: str, root: str, destination: str, config: dict):
     # and save it in the destination directory
     # use video_format in config file
     # check if input and output file formats are the same
-    if not os.path.isfile(os.path.join(destination, dest_file)):
+    if not (os.path.isfile(os.path.join(destination, dest_file)) or os.path.isfile(os.path.join(destination, dest_file[:dest_file.rfind(".")+1]+config["video_format"]))):
         if config['video_format'] == source_file.split('.')[-1]:
             # if input and output file formats are the same
             logger.info(
@@ -149,6 +184,19 @@ def compressFFMPEG(source: str, root: str, destination: str, config: dict):
     return source_file, source_path, destination, dest_file, compression
 
 
+def compress_convert(sourceFile, destinationFile, config):
+    # use convert command to convert the image to a lower quality and given format
+    # use image_format in and quality in config file
+    cmd = f"convert {sourceFile} -quality {config['quality']} {destinationFile}"
+    runs = subprocess.run(cmd, shell=True)
+    if runs.returncode != 0:
+        logger.error("Error in convert command")
+        return False
+    # log the source and destination file sizes and compression ratio
+    logger.info(f"Done using convert command {cmd}")
+    return True
+
+
 def compressPIL(source: str, root: str, destination: str, config: dict):
     # compressFileLossy will call this function if the source is an image file
     # convert the image to a lower quality and save it in the destination directory
@@ -166,8 +214,7 @@ def compressPIL(source: str, root: str, destination: str, config: dict):
 
     # convert the image to a lower quality and save it in the destination directory
     # use given quality ,extension and format in config file
-    if not os.path.isfile(os.path.join(destination, dest_file)):
-        img = Image.open(source)
+    if not (os.path.isfile(os.path.join(destination, dest_file)) or os.path.isfile(os.path.join(destination, dest_file[:dest_file.rfind(".")+1]+config["image_format"]))):
         if source_file.split('.')[-1] in [config['image_format'], "jpg"]:
             # if input and output file formats are the same
             logger.info(
@@ -179,8 +226,20 @@ def compressPIL(source: str, root: str, destination: str, config: dict):
                 f"Input and output file formats are different. Converting {source_file} to {config['image_format']} format")
             dest_file = dest_file.split(
                 '.')[0] + '.' + config['image_format']
-        img.save(os.path.join(destination, dest_file),
-                 format=config['image_format'], quality=config['quality'])
+        try:
+            img = Image.open(source)
+            img.save(os.path.join(destination, dest_file),
+                     format=config['image_format'], quality=config['quality'])
+        except UnidentifiedImageError or KeyError:
+            logger.warning(
+                f"Unidentified image file {source_file}\/ or format not supported")
+            logger.warning("using convert command")
+            if compress_convert(source, os.path.join(destination, dest_file), config):
+                logger.info("Done using convert command")
+            else:
+                logger.error("Error in convert command")
+                # copy the file to the destination directory as it is
+                copyFile(source, destination)
     # log the source and destination file sizes and compression ratio
     source_size = getTotalSize(source, source_path)
     destination_size = getTotalSize(os.path.join(
@@ -194,7 +253,7 @@ def compressPIL(source: str, root: str, destination: str, config: dict):
     return source_file, source_path, destination, dest_file, compression
 
 
-def main():
+def main():  # sourcery skip: do-not-use-bare-except
     # get source folder ,destination folder read config file
     # call compressFileLossy function
     # do logging accordinglly
@@ -207,7 +266,11 @@ def main():
     # replace the source names with removing special characters
     # removeSpaces(source)
     # get file list from source folder
-    file_list = get_files(source, condition)
+    get_files_start = time.time()
+    file_list = get_files_custom(source)
+    # print(file_list)
+    logger.info(
+        f"Time taken to get file list: {time.time()-get_files_start} seconds")
     # get the size of the source folder and log it
     logger.info("Getting the size of the source folder")
     source_size = getTotalSize(source, source)
@@ -217,7 +280,7 @@ def main():
     # call compressFileLossy function
     try:
         compressFilesLossy(file_list, source, destination,
-                        config, conn, table=config['files_table'])
+                           config, conn, table=config['files_table'])
         # get the size of the destination folder and log it
         destination_size = getTotalSize(destination, destination)
         logger.info(f"Source folder size: {source_size} MB")
@@ -231,9 +294,9 @@ def main():
         conn.close()
     # except any exception or keyboard interrupt
     # log the exception
-    except:
-        logger.exception("Exception occured")
-        
+    except Exception as e:
+        logger.exception(f"Exception occured: {e}")
+
         # if the user presses ctrl+c
         # commit the changes to the database
         conn.commit()
@@ -241,6 +304,15 @@ def main():
         conn.close()
         # exit the program
         sys.exit(0)
+    except KeyboardInterrupt:
+        logger.info("Keyboard interrupt")
+        # commit the changes to the database
+        conn.commit()
+        # close the connection to the database
+        conn.close()
+        # exit the program
+        sys.exit(0)
+
 
 if __name__ == "__main__":
     main()
