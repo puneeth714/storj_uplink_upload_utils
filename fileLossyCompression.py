@@ -157,20 +157,25 @@ def compressFFMPEG(source: str, root: str, destination: str, config: dict):
     # and save it in the destination directory
     # use video_format in config file
     # check if input and output file formats are the same
-    if not (os.path.isfile(os.path.join(destination, dest_file)) or os.path.isfile(os.path.join(destination, dest_file[:dest_file.rfind(".")+1]+config["video_format"]))):
-        if config['video_format'] == source_file.split('.')[-1]:
-            # if input and output file formats are the same
-            logger.info(
-                f"Input and output file formats are the same. Converting {source_file} to {config['video_format']} format")
+    if not os.path.isfile(os.path.join(destination, dest_file)):
+        if os.path.isfile(os.path.join(destination, dest_file[:dest_file.rfind(".")+1]+config["video_format"])):
+            logger.info(f"Already converted to {config['video_format']}")
+            dest_file = dest_file[:dest_file.rfind(
+                ".")+1]+config["video_format"]
         else:
-            # if input and output file formats are different
-            # remove the extension from the source file and add the video_format from config file
-            logger.info(
-                f"Input and output file formats are different. Converting {source_file} to {config['video_format']} format")
-            dest_file = dest_file.split(
-                '.')[0] + '.' + config['video_format']
-        cmd = f"ffmpeg -v error -i {source} -c:v {config['codec']} -b:v {config['bitrate']}  {os.path.join(destination,dest_file)}"
-        subprocess.run(cmd, shell=True)
+            if config['video_format'] == source_file.split('.')[-1]:
+                # if input and output file formats are the same
+                logger.info(
+                    f"Input and output file formats are the same. Converting {source_file} to {config['video_format']} format")
+            else:
+                # if input and output file formats are different
+                # remove the extension from the source file and add the video_format from config file
+                logger.info(
+                    f"Input and output file formats are different. Converting {source_file} to {config['video_format']} format")
+                dest_file = dest_file.split(
+                    '.')[0] + '.' + config['video_format']
+            cmd = f"ffmpeg -v error -i {source} -c:v {config['codec']} -b:v {config['bitrate']}  {os.path.join(destination,dest_file)}"
+            subprocess.run(cmd, shell=True)
     # log the source and destination file sizes and compression ratio
     source_size = getTotalSize(source, source_path)
     destination_size = getTotalSize(os.path.join(
@@ -214,36 +219,44 @@ def compressPIL(source: str, root: str, destination: str, config: dict):
 
     # convert the image to a lower quality and save it in the destination directory
     # use given quality ,extension and format in config file
-    if not (os.path.isfile(os.path.join(destination, dest_file)) or os.path.isfile(os.path.join(destination, dest_file[:dest_file.rfind(".")+1]+config["image_format"]))):
-        if source_file.split('.')[-1] in [config['image_format'], "jpg"]:
-            # if input and output file formats are the same
+    if not os.path.isfile(os.path.join(destination, dest_file)):
+        if os.path.isfile(os.path.join(destination, dest_file[:dest_file.rfind(".")+1]+config["image_format"])):
             logger.info(
-                f"Input and output file formats are the same. Converting {source_file} to {config['image_format']} format")
+                f"Already converted to {config['image_format']} format")
+            dest_file = dest_file[:dest_file.rfind(
+                ".")+1]+config["image_format"]
         else:
-            # if input and output file formats are different
-            # remove the extension from the source file and add the image_format from config file
-            logger.info(
-                f"Input and output file formats are different. Converting {source_file} to {config['image_format']} format")
-            dest_file = dest_file.split(
-                '.')[0] + '.' + config['image_format']
-        try:
-            img = Image.open(source)
-            img.save(os.path.join(destination, dest_file),
-                     format=config['image_format'], quality=config['quality'])
-        except UnidentifiedImageError or KeyError:
-            logger.warning(
-                f"Unidentified image file {source_file}\/ or format not supported")
-            logger.warning("using convert command")
-            if compress_convert(source, os.path.join(destination, dest_file), config):
-                logger.info("Done using convert command")
+            if source_file.split('.')[-1] in [config['image_format'], "jpg"]:
+                # if input and output file formats are the same
+                logger.info(
+                    f"Input and output file formats are the same. Converting {source_file} to {config['image_format']} format")
             else:
-                logger.error("Error in convert command")
-                # copy the file to the destination directory as it is
-                copyFile(source, destination)
+                # if input and output file formats are different
+                # remove the extension from the source file and add the image_format from config file
+                logger.info(
+                    f"Input and output file formats are different. Converting {source_file} to {config['image_format']} format")
+                dest_file = dest_file.split(
+                    '.')[0] + '.' + config['image_format']
+            try:
+                img = Image.open(source)
+                img.save(os.path.join(destination, dest_file),
+                         format=config['image_format'], quality=config['quality'])
+            except Exception as e:
+                logger.warning(
+                    f"Unidentified image file {source_file}\/ or format not supported")
+                logger.warning(f"Error is {e}\n\n\n")
+                logger.warning("using convert command")
+                if compress_convert(source, os.path.join(destination, dest_file), config):
+                    logger.info("Done using convert command")
+                else:
+                    logger.error("Error in convert command")
+                    # copy the file to the destination directory as it is
+                    copyFile(source, destination)
     # log the source and destination file sizes and compression ratio
     source_size = getTotalSize(source, source_path)
-    destination_size = getTotalSize(os.path.join(
-        destination, dest_file), destination)
+    print(f"{os.path.join(destination, dest_file)} , {destination}")
+    destination_size = getTotalSize(
+        os.path.join(destination, dest_file), destination)
     compression = round((source_size)/destination_size, 2)
     logger.info(f"Source file size: {source_size} MB")
     logger.info(f"Destination file size: {destination_size} MB")
