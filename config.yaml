@@ -1,7 +1,7 @@
-source : /home/$USER/Pictures/Files/Camera/
+source : /home/$USER/Pictures/compressed_files/Camera/
 destination : /home/$USER/Pictures/Files2/
 compression_type : 7z
-uplink_path_destination : memories20220919/
+uplink_path_destination : gallery
 uplink_path_type : sj://
 log_file : log.txt
 parallel_upload : 5
@@ -12,6 +12,8 @@ video_format : mp4
 codec : hevc_nvenc
 bitrate : 2M
 frame_rate : 30
+custom_file : none
+custom_params : [-fpsmax 60 -b:v 5M -c:v hevc_nvenc -preset ultrafast -crf 26 -c:a aac]
 tool_for_images : PIL
 tool_for_videos : ffmpeg
 delete_source : False

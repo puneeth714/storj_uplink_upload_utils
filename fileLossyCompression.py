@@ -71,7 +71,7 @@ def addTodatabase(fileName, filePath, destinationName, destinationPath, compress
 
 def copyFile(sourceFile, destinationFile):
     # copy the file to the destination directory
-    cmd = f"cp  -p {sourceFile} {destinationFile}"
+    cmd = f"cp  -p {sourceFile}   {destinationFile}"
     runs = subprocess.run(cmd, shell=True)
     if runs.returncode != 0:
         logger.error("Error in copy command")
@@ -84,6 +84,18 @@ def copyFile(sourceFile, destinationFile):
 def compressionAverage(avg, now):
     # calculate the average compression ratio
     return now if avg == 0 else (avg+now)/2
+
+
+def customCheckConditionFFMPEG(fileName: str, config: dict) -> bool:
+    # check if coustom condition is in fileName
+    return config["custom_file"] in fileName.lower()
+
+
+def customParamsFFMPEG(config: dict) -> str:
+    # return the custom parameters for ffmpeg command
+    # use custom_params in config file
+    # which is in list format convert to string format with spaces
+    return " ".join(config["custom_params"])
 
 
 def compressFilesLossy(files, root, destination, config, connection: sqlite3.Connection, table):
@@ -158,7 +170,7 @@ def compressFFMPEG(source: str, root: str, destination: str, config: dict):
     # use video_format in config file
     # check if input and output file formats are the same
     if not os.path.isfile(os.path.join(destination, dest_file)):
-        if os.path.isfile(os.path.join(destination, dest_file[:dest_file.rfind(".")+1]+config["video_format"])):
+        if os.path.isfile(os.path.join(destination, dest_file[:dest_file.rfind(".")+1]+config["video_format"])) and not customCheckConditionFFMPEG(source_file, config):
             logger.info(f"Already converted to {config['video_format']}")
             dest_file = dest_file[:dest_file.rfind(
                 ".")+1]+config["video_format"]
@@ -174,7 +186,13 @@ def compressFFMPEG(source: str, root: str, destination: str, config: dict):
                     f"Input and output file formats are different. Converting {source_file} to {config['video_format']} format")
                 dest_file = dest_file.split(
                     '.')[0] + '.' + config['video_format']
-            cmd = f"ffmpeg -v error -i {source} -c:v {config['codec']} -b:v {config['bitrate']}  {os.path.join(destination,dest_file)}"
+            if customCheckConditionFFMPEG(source_file, config):
+                logger.info(
+                    "Custom condition is true. Using custom parameters")
+                cmd = f"ffmpeg -v error -n -i {source} {customParamsFFMPEG(config)} \'{os.path.join(destination, dest_file)}\'"
+                logger.info(f"Using custom command {cmd}")
+            else:
+                cmd = f"ffmpeg -v error -i {source} -c:v {config['codec']} -b:v {config['bitrate']}  \'{os.path.join(destination,dest_file)}\'"
             subprocess.run(cmd, shell=True)
     # log the source and destination file sizes and compression ratio
     source_size = getTotalSize(source, source_path)
@@ -246,12 +264,14 @@ def compressPIL(source: str, root: str, destination: str, config: dict):
                     f"Unidentified image file {source_file}\/ or format not supported")
                 logger.warning(f"Error is {e}\n\n\n")
                 logger.warning("using convert command")
-                if compress_convert(source, os.path.join(destination, dest_file), config):
+                if compress_convert(source, os.path.join(destination, dest_file), config) and os.path.isfile(os.path.join(destination, dest_file)):
                     logger.info("Done using convert command")
                 else:
                     logger.error("Error in convert command")
                     # copy the file to the destination directory as it is
-                    copyFile(source, destination)
+                    # here we should use source_file because we want to copy the file with the extension as it is not changing extension
+                    # but dest_file is the file name which extension might be changed
+                    copyFile(source, os.path.join(destination, os.path.dirname(source_file)))
     # log the source and destination file sizes and compression ratio
     source_size = getTotalSize(source, source_path)
     print(f"{os.path.join(destination, dest_file)} , {destination}")

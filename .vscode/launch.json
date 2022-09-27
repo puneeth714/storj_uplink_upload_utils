@@ -11,7 +11,7 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "args": ["/home/puneeth/Pictures/Files/","/home/puneeth/Pictures/tmp1/","config.yaml"]
+            "args": ["/home/puneeth/Pictures/compressed_files/","202209/","gallery/","25","sj://" ]
         }
     ]
 }

@@ -38,6 +38,16 @@ def removeSpaces(source: str):
     logger.debug(f"Done removing spaces from {source}")
 
 
+def removeSpacesDir(source: str):
+    # remove spaces from the directory name recursively including subdirectories
+    for root, dirs, _ in os.walk(source, topdown=False):
+        for dirName in dirs:
+            new_dir_name = replace(dirName)
+            os.rename(os.path.join(root, dirName), os.path.join(
+                root, new_dir_name))
+            logger.debug(f"{dirName} renamed to {new_dir_name}")
+
+
 def get_metadata(folder: str):
     # get the metadata of the file and append it to a json file using exiftool
     metadata = os.popen(f"exiftool -j {folder} -r").read()
@@ -52,7 +62,7 @@ def convertJSONtoSQL(data: dict, table_name: str):
     df = pd.DataFrame(data)
     # convert the dataframe to a sql file
     conn = sqlite3.connect("file_data.db")
-    df.to_sql(table_name, conn, if_exists="replace")
+    df.to_sql(table_name, conn, if_exists="replace", index=False)
 
 
 def get_files(path, condition, isDir=False):
@@ -103,9 +113,20 @@ def get_files_scandir(path, condition, isDir=False):
     return files_are
 
 
-def get_files_custom(path):
+def get_files_notIn(source, destinataion):
+    # get the files in source but not in destination
+    # using find command
+    # get files in source sort get files in destination sort and find the difference
+    source_files = get_files_custom(source, "-printf '%f\n")
+    destination_files = get_files_custom(destinataion, "-printf '%f\n")
+    return set(source_files), set(destination_files)
+
+
+def get_files_custom(path, params=None):
     # just get the files recursively
     # using find command
+    if params != None:
+        return os.popen(f"find {path} -type f  {params}").read().split("\n")
     return os.popen(f"find {path} -type f").read().split("\n")
 
 
